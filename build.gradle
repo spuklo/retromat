@@ -44,5 +44,14 @@ compileTestKotlin {
     kotlinOptions.jvmTarget = '1.8'
 }
 
+jar {
+    manifest {
+        attributes 'Main-class': mainClassName,
+        'Implementation-Title': 'Retromat',
+        'Implementation-Version': project.version,
+        'Build-Time': LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME)
+    }
+}
+
 build.dependsOn(shadowJar)
 
