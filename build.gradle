@@ -1,0 +1,48 @@
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeFormatterBuilder
+import java.time.temporal.ChronoField
+
+plugins {
+    id 'com.github.johnrengelman.shadow' version '5.2.0'
+    id 'org.jetbrains.kotlin.jvm' version '1.3.71'
+}
+
+DateTimeFormatter buildTimestampFormatter = new DateTimeFormatterBuilder()
+        .appendValue(ChronoField.YEAR, 4)
+        .appendValue(ChronoField.MONTH_OF_YEAR, 2)
+        .appendValue(ChronoField.DAY_OF_MONTH, 2)
+        .appendLiteral('T')
+        .appendValue(ChronoField.HOUR_OF_DAY, 2)
+        .appendValue(ChronoField.MINUTE_OF_HOUR, 2)
+        .appendValue(ChronoField.SECOND_OF_MINUTE, 2)
+        .toFormatter()
+
+description 'retromat'
+group 'io.github.spuklo'
+version LocalDateTime.now().format(buildTimestampFormatter)
+
+ext.mainClassName = "io.github.spuklo.retromat.Retromat"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
+    implementation 'io.javalin:javalin:3.7.0'
+    implementation 'org.jetbrains.kotlin:kotlin-reflect:1.3.71'
+    implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.10.2'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.10.2'
+    implementation 'ch.qos.logback:logback-classic:1.2.3'
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = '1.8'
+}
+compileTestKotlin {
+    kotlinOptions.jvmTarget = '1.8'
+}
+
+build.dependsOn(shadowJar)
+
