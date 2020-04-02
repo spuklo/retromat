@@ -19,7 +19,8 @@ const state = {
 const getters = {
   getStats: state => state.stats,
   votesRemaining: state => state.votes_remaining,
-  getCards: state => state.cards
+  getCards: state => state.cards,
+  isDisconnected: state => !state.connected
 }
 
 const mutations = {
@@ -33,12 +34,12 @@ const mutations = {
     console.log(message)
     if (message.data) {
       const json = JSON.parse(message.data)
-      if (json.type == 'STATS') {
+      if (json.type === 'STATS') {
         state.stats = json.body
-      } else if (json.type == 'RETRO') {
+      } else if (json.type === 'RETRO') {
         state.cards = json.body.cards
-      } else if (json.type == 'CARD') {
-        state.cards = state.cards.filter(it => it.id != json.body.id)
+      } else if (json.type === 'CARD') {
+        state.cards = state.cards.filter(it => it.id !== json.body.id)
         state.cards.push(json.body)
       }
     }

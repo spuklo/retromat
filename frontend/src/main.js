@@ -7,7 +7,11 @@ import VueNativeSock from 'vue-native-websocket'
 
 Vue.config.productionTip = false
 Vue.use(ElementUI);
-Vue.use(VueNativeSock, 'ws://'+window.location.host+'/retro', { store: store })
+Vue.use(VueNativeSock, 'ws://'+window.location.host+'/retro', {
+  store: store,
+  reconnection: true,
+  reconnectionDelay: 1000
+})
 
 new Vue({
   store,

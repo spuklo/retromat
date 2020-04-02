@@ -1,5 +1,6 @@
 <template>
   <div id="app">
+    <ConnectionCheck/>
     <SafetyCheck/>
     <el-container>
       <el-header>
@@ -27,6 +28,7 @@ import Stats from './components/Stats.vue'
 import SafetyCheck from './components/SafetyCheck.vue'
 import CardList from './components/CardList.vue'
 import AddCard from './components/AddCard.vue'
+import ConnectionCheck from "./components/ConnectionCheck";
 
 export default {
   name: 'App',
@@ -34,14 +36,15 @@ export default {
     Stats,
     SafetyCheck,
     CardList,
-    AddCard
+    AddCard,
+    ConnectionCheck
   }
 }
 </script>
 
 <style>
 body {
-  font-family: "Helvetica Neue",Helvetica
+  font-family: "Helvetica Neue",Helvetica,serif
 }
 .el-col-center {
   text-align: center;
