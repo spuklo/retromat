@@ -1,0 +1,24 @@
+plugins {
+    id 'com.github.node-gradle.node' version '2.2.2'
+}
+
+node {
+    download = true
+    version = '12.16.1'
+}
+
+task build(type: NpmTask) {
+    args = ['run-script', 'build']
+    doLast {
+        copy {
+            from 'dist'
+            into project(':backend').file('src/main/resources/public')
+        }
+    }
+}
+
+task clean(type: Delete) {
+    delete 'dist'
+}
+
+build.dependsOn npmInstall

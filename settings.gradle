@@ -1,2 +1,4 @@
 rootProject.name = 'retromat'
+include 'backend'
+include 'frontend'
 

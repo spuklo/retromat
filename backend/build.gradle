@@ -1,0 +1,41 @@
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
+plugins {
+    id 'com.github.johnrengelman.shadow' version '5.2.0'
+    id 'org.jetbrains.kotlin.jvm' version '1.3.71'
+}
+
+ext.mainClassName = "io.github.spuklo.retromat.Retromat"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
+    implementation 'io.javalin:javalin:3.7.0'
+    implementation 'org.jetbrains.kotlin:kotlin-reflect:1.3.71'
+    implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.10.2'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.10.2'
+    implementation 'ch.qos.logback:logback-classic:1.2.3'
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = '1.8'
+}
+compileTestKotlin {
+    kotlinOptions.jvmTarget = '1.8'
+}
+
+jar {
+    manifest {
+        attributes 'Main-class': mainClassName,
+                'Implementation-Title': 'Retromat',
+                'Implementation-Version': project.version,
+                'Build-Time': LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME)
+    }
+}
+
+processResources.dependsOn(':frontend:build')
+build.dependsOn(shadowJar)
