@@ -5,11 +5,6 @@ import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-import io.javalin.Javalin
-import io.javalin.plugin.json.JavalinJackson
-import io.javalin.plugin.json.JavalinJson
-import io.javalin.websocket.WsContext
-import io.javalin.websocket.WsMessageContext
 import io.github.spuklo.retromat.CardType.APPRECIATION
 import io.github.spuklo.retromat.CardType.IDEA
 import io.github.spuklo.retromat.CardType.OTHER
@@ -18,12 +13,18 @@ import io.github.spuklo.retromat.MessageType.ERROR
 import io.github.spuklo.retromat.MessageType.SAFETY_LEVEL
 import io.github.spuklo.retromat.MessageType.STATS
 import io.github.spuklo.retromat.MessageType.VOTE
+import io.javalin.Javalin
+import io.javalin.plugin.json.JavalinJackson
+import io.javalin.plugin.json.JavalinJson
+import io.javalin.websocket.WsContext
+import io.javalin.websocket.WsMessageContext
 import org.eclipse.jetty.websocket.api.Session
 import org.slf4j.LoggerFactory
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicReference
 import javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST
+import javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR
 import kotlin.concurrent.fixedRateTimer
 
 object Retromat {
@@ -73,6 +74,21 @@ object Retromat {
             .get("/retro") { ctx ->
                 ctx.json(retro.get())
             }
+            .get("/retro/pdf") { ctx ->
+                val retroNotesPdf = generateRetroNotes((retro.get()))
+                when {
+                    retroNotesPdf.isNotEmpty() -> {
+                        ctx.header("Content-disposition", "attachment; filename=retro-${retro.get().id}.pdf")
+                        ctx.contentType("application/pdf");
+//                        ctx.res.setContentLength(retroNotesPdf.size)
+                        ctx.result(retroNotesPdf)
+                    }
+                    else -> {
+                        ctx.status(SC_INTERNAL_SERVER_ERROR)
+                        ctx.result("Failed to generate PDF with notes")
+                    }
+                }
+            }
             .ws("/retro") {
                 it.onConnect { ctx ->
                     log.info("Session connected {}", ctx.sessionId)
@@ -119,27 +135,35 @@ object Retromat {
             }
             .start(port)
         log.info(banner)
-        log.info("Retromat is listening on port: {}",
+        log.info(
+            "Retromat $version is listening on port: {}",
             port
         )
-        log.info("Admin code: {}",
+        log.info(
+            "Admin code: {}",
             adminCode
         )
         log.info("Created retro id: {}", retro.get().id)
 
-        val wsPingTimer = fixedRateTimer("websocket-ping-timer", false,
+        val wsPingTimer = fixedRateTimer(
+            "websocket-ping-timer", false,
             wsPingInterval,
             wsPingInterval
         ) {
-            sessions.forEach { it.remote.sendString(
-                pingMessageJson
-            ) }
+            sessions.forEach {
+                it.remote.sendString(
+                    pingMessageJson
+                )
+            }
         }
 
         Runtime.getRuntime().addShutdownHook(Thread(Runnable {
             wsPingTimer.cancel()
-            log.info("Retromat is shutting down. Last known retro data: \n{}", JavalinJson.toJson(
-                retro.get()))
+            log.info(
+                "Retromat is shutting down. Last known retro data: \n{}", JavalinJson.toJson(
+                    retro.get()
+                )
+            )
         }))
     }
 
