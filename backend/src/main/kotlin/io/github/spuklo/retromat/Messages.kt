@@ -3,7 +3,7 @@ package io.github.spuklo.retromat
 import java.time.LocalDateTime
 
 enum class MessageType {
-    RETRO, CARD, VOTE, ERROR, SAFETY_LEVEL, STATS, PING
+    RETRO, CARD, VOTE, ERROR, SAFETY_LEVEL, STATS, PING, VERSION
 }
 
 enum class CardType {
@@ -52,13 +52,10 @@ data class Retro(val id: Int, val created: LocalDateTime, val cards: List<RetroC
         )
 
     fun toMessage(): Message =
-        Message(
-            MessageType.RETRO, mapOf(
+        Message(MessageType.RETRO, mapOf(
                 "id" to id,
                 "created" to created,
-                "cards" to cards.map { it.toMap() }.toList()
-            )
-        )
+                "cards" to cards.map { it.toMap() }.toList()))
 }
 
 fun newRetro() = Retro(

@@ -5,13 +5,11 @@ import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-import io.github.spuklo.retromat.CardType.APPRECIATION
-import io.github.spuklo.retromat.CardType.IDEA
-import io.github.spuklo.retromat.CardType.OTHER
 import io.github.spuklo.retromat.MessageType.CARD
 import io.github.spuklo.retromat.MessageType.ERROR
 import io.github.spuklo.retromat.MessageType.SAFETY_LEVEL
 import io.github.spuklo.retromat.MessageType.STATS
+import io.github.spuklo.retromat.MessageType.VERSION
 import io.github.spuklo.retromat.MessageType.VOTE
 import io.javalin.Javalin
 import io.javalin.plugin.json.JavalinJackson
@@ -80,7 +78,6 @@ object Retromat {
                     retroNotesPdf.isNotEmpty() -> {
                         ctx.header("Content-disposition", "attachment; filename=retro-${retro.get().id}.pdf")
                         ctx.contentType("application/pdf");
-//                        ctx.res.setContentLength(retroNotesPdf.size)
                         ctx.result(retroNotesPdf)
                     }
                     else -> {
@@ -92,6 +89,7 @@ object Retromat {
             .ws("/retro") {
                 it.onConnect { ctx ->
                     log.info("Session connected {}", ctx.sessionId)
+                    ctx.send(Message(VERSION, mapOf("v" to version)))
                     sessions.add(ctx.session)
                     sendStats()
                     ctx.send(retro.get().toMessage())
@@ -145,11 +143,7 @@ object Retromat {
         )
         log.info("Created retro id: {}", retro.get().id)
 
-        val wsPingTimer = fixedRateTimer(
-            "websocket-ping-timer", false,
-            wsPingInterval,
-            wsPingInterval
-        ) {
+        val wsPingTimer = fixedRateTimer("websocket-ping-timer", false, wsPingInterval, wsPingInterval) {
             sessions.forEach {
                 it.remote.sendString(
                     pingMessageJson
@@ -159,11 +153,7 @@ object Retromat {
 
         Runtime.getRuntime().addShutdownHook(Thread(Runnable {
             wsPingTimer.cancel()
-            log.info(
-                "Retromat is shutting down. Last known retro data: \n{}", JavalinJson.toJson(
-                    retro.get()
-                )
-            )
+            log.info("Retromat is shutting down. Last known retro data: \n{}", JavalinJson.toJson(retro.get()))
         }))
     }
 
@@ -175,10 +165,7 @@ object Retromat {
     private fun parseMessageOrErrorMessage(ctx: WsMessageContext) = try {
         ctx.message(Message::class.java)
     } catch (e: Exception) {
-        Message(
-            ERROR,
-            mapOf("message" to "Malformed JSON message: \"${ctx.message()}\"")
-        )
+        Message(ERROR, mapOf("message" to "Malformed JSON message: \"${ctx.message()}\""))
     }
 
     private fun sendStats() {
@@ -200,13 +187,8 @@ object Retromat {
                     && CardType.values().contains(CardType.valueOf(body.getValue("type").toString()))
                     && body.getValue("text").toString().isNotBlank() -> {
 
-                val (type: CardType, text: String) =
-                    when (val sentType = CardType.valueOf(body.getValue("type").toString())) {
-                        IDEA -> Pair(OTHER, "[IDEA] ${body.getValue("text")}")
-                        APPRECIATION -> Pair(OTHER, "[APPRECIATION] ${body.getValue("text")}")
-                        else -> Pair(sentType, body.getValue("text").toString())
-                    }
-
+                val type = CardType.valueOf(body.getValue("type").toString())
+                val text = body.getValue("text").toString()
                 val newCard = RetroCard(System.nanoTime(), type, text)
                 retro.set(retro.get().addNewCard(newCard))
                 sendUpdatedCard(newCard)
@@ -215,7 +197,6 @@ object Retromat {
     }
 
     private fun handleVoteMessage(voteMessage: Message) {
-        log.info("VOTE message: {}", voteMessage)
         val body = voteMessage.body
         when {
             body.containsKey("id") && body.containsKey("vote") -> {

@@ -13,14 +13,16 @@ const state = {
   },
   cards: [],
   connected : false,
-  votes_remaining: 5
+  votes_remaining: 5,
+  version: ''
 }
 
 const getters = {
   getStats: state => state.stats,
   votesRemaining: state => state.votes_remaining,
   getCards: state => state.cards,
-  isDisconnected: state => !state.connected
+  isDisconnected: state => !state.connected,
+  getVersion: state => state.version
 }
 
 const mutations = {
@@ -41,6 +43,8 @@ const mutations = {
       } else if (json.type === 'CARD') {
         state.cards = state.cards.filter(it => it.id !== json.body.id)
         state.cards.push(json.body)
+      } else if (json.type === 'VERSION') {
+        state.version = json.body.v
       }
     }
   },

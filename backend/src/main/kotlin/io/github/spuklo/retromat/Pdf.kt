@@ -53,23 +53,7 @@ fun generateRetroNotes(retro: Retro): ByteArray = try {
     retroNotes.add(Chunk.NEWLINE)
 
     cardTypesOrder.forEach { cardType ->
-        // it's a hack, will be fixed when UI can handle all card types
-        val cards = when (cardType) {
-            OTHER -> retro.cards
-                .filter { it.type == cardType }
-                .filter { !it.text.startsWith('[') }
-                .toList()
-            IDEA -> retro.cards
-                .filter { it.type == OTHER }
-                .filter { it.text.startsWith("[${IDEA.name}") }
-                .toList()
-            APPRECIATION -> retro.cards
-                .filter { it.type == OTHER }
-                .filter { it.text.startsWith("[${APPRECIATION.name}") }
-                .toList()
-            else -> retro.cards.filter { card -> card.type == cardType }.toList()
-        }
-
+        val cards = retro.cards.filter { card -> card.type == cardType }.toList()
         when {
             cards.isNotEmpty() -> {
                 val sectionHeading = Paragraph(Chunk(cardType.name, headerFont))

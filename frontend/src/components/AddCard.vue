@@ -28,7 +28,6 @@ export default {
     name: "AddCard",
     data() {
         return {
-            // labelWidth: "120px",
             dialogVisible: false,
             form: {
                 text: '',
@@ -38,7 +37,7 @@ export default {
     },
     methods: {
         submitNewRetroCard() {
-            if (this.form.type == '' || this.form.text.length < 3) {
+            if (this.form.type === '' || this.form.text.length < 3) {
                 return;
             }
             const msg = {

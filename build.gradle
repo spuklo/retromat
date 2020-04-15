@@ -1,24 +1,9 @@
 import java.text.SimpleDateFormat
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeFormatterBuilder
-import java.time.temporal.ChronoField
-
-DateTimeFormatter buildTimestampFormatter = new DateTimeFormatterBuilder()
-        .appendValue(ChronoField.YEAR, 4)
-        .appendValue(ChronoField.MONTH_OF_YEAR, 2)
-        .appendValue(ChronoField.DAY_OF_MONTH, 2)
-        .appendLiteral('T')
-        .appendValue(ChronoField.HOUR_OF_DAY, 2)
-        .appendValue(ChronoField.MINUTE_OF_HOUR, 2)
-        .appendValue(ChronoField.SECOND_OF_MINUTE, 2)
-        .toFormatter()
 
 allprojects {
     description 'retromat'
     group 'io.github.spuklo'
-    version LocalDateTime.now().format(buildTimestampFormatter)
-//    version new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(LocalDateTime.now())
+    version new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date(System.currentTimeMillis()))
 
     defaultTasks 'clean', 'build'
 }
