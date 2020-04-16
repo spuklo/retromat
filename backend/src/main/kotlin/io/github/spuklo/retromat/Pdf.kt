@@ -20,8 +20,6 @@ import io.github.spuklo.retromat.CardType.OTHER
 import io.github.spuklo.retromat.CardType.POSITIVE
 import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
-import java.time.Instant
-import java.time.ZoneOffset
 import java.util.Date
 
 private val footerFont = FontFactory.getFont("/fonts/Roboto-Regular.ttf", 8f)
@@ -29,14 +27,14 @@ private val listFont = FontFactory.getFont("/fonts/Roboto-Regular.ttf", 11f)
 private val headerFont = FontFactory.getFont("/fonts/Roboto-Regular.ttf", 14f)
 
 private val dateTimeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
-private fun timeOf(millis: Long = Instant.now().toEpochMilli()): String = dateTimeFormat.format(Date(millis))
+private fun timeOf(): String = dateTimeFormat.format(Date(System.currentTimeMillis()))
 
 fun generateRetroNotes(retro: Retro): ByteArray = try {
     val cardTypesOrder = listOf(APPRECIATION, POSITIVE, NEGATIVE, IDEA, OTHER, ACTION)
     val outputStream = ByteArrayOutputStream()
     val retroNotes = Document(PageSize.A4, 40f, 40f, 40f, 40f)
     val writer = PdfWriter.getInstance(retroNotes, outputStream)
-    writer.info.put(PdfName.CREATOR, PdfString("Retromat $version using ${Document.getVersion()}"));
+    writer.info.put(PdfName.CREATOR, PdfString("Retromat $version using ${Document.getVersion()}"))
     val headerFooter =
         HeaderFooter(Phrase("Retromat v. $version, generated ${timeOf()}, page ", footerFont), true)
     headerFooter.setAlignment(Element.ALIGN_CENTER)
@@ -44,9 +42,7 @@ fun generateRetroNotes(retro: Retro): ByteArray = try {
 
     retroNotes.open()
 
-    val heading = Paragraph(
-        Chunk("Retro notes - ${timeOf(retro.created.toEpochSecond(ZoneOffset.UTC))}", headerFont)
-    )
+    val heading = Paragraph(Chunk("Retro notes", headerFont))
     heading.alignment = Element.ALIGN_CENTER
     retroNotes.add(heading)
     retroNotes.add(Chunk.NEWLINE)
