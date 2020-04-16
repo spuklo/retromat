@@ -15,7 +15,6 @@ import org.eclipse.jetty.websocket.api.Session
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicReference
-import javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST
 import javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR
 import kotlin.concurrent.fixedRateTimer
 
@@ -28,7 +27,6 @@ object Retromat {
     private val retro = AtomicReference(loadMagicFileOrCreateEmptyRetro())
     private val sessions = mutableSetOf<Session>()
     private val safetyLevels = mutableMapOf<String, Int>()
-    private val adminCode = random6digits()
 
     @JvmStatic
     fun main(args: Array<String>) {
@@ -36,35 +34,6 @@ object Retromat {
         Javalin.create {
             it.addStaticFiles("/public")
         }
-            .post("/retro") { ctx ->
-                val code = ctx.formParam("code", "0")!!.toInt()
-                when (adminCode) {
-                    code -> {
-                        val newRetro = newRetro()
-                        val oldRetro = retro.getAndSet(newRetro)
-                        retromatLogger.info(
-                            "New retro created in place of the old one. Old retro data:\n{}",
-                            JavalinJson.toJson(oldRetro)
-                        )
-                        retromatLogger.info("New retro id: {}", newRetro.id)
-                        safetyLevels.clear()
-                        sessions.forEach {
-                            it.remote.sendString(
-                                JavalinJson.toJson(retro.get().toMessage())
-                            )
-                        }
-                        sendStats()
-                        ctx.json(newRetro)
-                    }
-                    else -> {
-                        ctx.status(SC_BAD_REQUEST)
-                        ctx.result("Invalid code. Better luck next time")
-                    }
-                }
-            }
-            .get("/retro") { ctx ->
-                ctx.json(retro.get())
-            }
             .get("/retro/pdf") { ctx ->
                 val retroNotesPdf = generateRetroNotes((retro.get()))
                 when {
@@ -128,7 +97,6 @@ object Retromat {
 
         retromatLogger.info(banner)
         retromatLogger.info("Retromat v.$version is listening on port: {}", port)
-        retromatLogger.info("Admin code: {}", adminCode)
         retromatLogger.info("Retro is saved in file: {}", currentRetroBackupFile(retro.get()))
 
         val wsPingTimer = fixedRateTimer("websocket-ping-timer", false, wsPingInterval, wsPingInterval) {
@@ -157,8 +125,7 @@ object Retromat {
     }
 
     private fun sendStats() {
-        val statsMessage = Message(
-            STATS, mapOf(
+        val statsMessage = Message(STATS, mapOf(
                 "sessions" to sessions.size,
                 "min_safety" to if (safetyLevels.isEmpty()) 0 else safetyLevels.values.min()!!,
                 "max_safety" to if (safetyLevels.isEmpty()) 0 else safetyLevels.values.max()!!,

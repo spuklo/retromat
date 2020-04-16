@@ -10,9 +10,6 @@ import com.natpryce.konfig.stringType
 import io.github.spuklo.retromat.Retromat.retromatLogger
 import java.io.File
 import java.time.LocalDateTime
-import kotlin.random.Random
-
-fun random6digits(): Int = Random(System.nanoTime()).nextInt(100000, 1000000)
 
 fun Float.twoDecimals(): Float = "%.2f".format(this).toFloat()
 
