@@ -30,7 +30,7 @@ data class RetroCard(val id: Long, val type: CardType, val text: String, val vot
         )
 }
 
-data class Retro(val id: Int, val created: LocalDateTime, val cards: List<RetroCard>) {
+data class Retro(val id: Long, val created: LocalDateTime, val cards: List<RetroCard>) {
     fun addNewCard(card: RetroCard): Retro =
         Retro(
             id,
@@ -58,8 +58,3 @@ data class Retro(val id: Int, val created: LocalDateTime, val cards: List<RetroC
                 "cards" to cards.map { it.toMap() }.toList()))
 }
 
-fun newRetro() = Retro(
-    random6digits(),
-    LocalDateTime.now(),
-    listOf()
-)

@@ -1,10 +1,5 @@
 package io.github.spuklo.retromat
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.SerializationFeature
-import com.fasterxml.jackson.databind.module.SimpleModule
-import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer
-import com.fasterxml.jackson.module.kotlin.KotlinModule
 import io.github.spuklo.retromat.MessageType.CARD
 import io.github.spuklo.retromat.MessageType.ERROR
 import io.github.spuklo.retromat.MessageType.SAFETY_LEVEL
@@ -17,9 +12,8 @@ import io.javalin.plugin.json.JavalinJson
 import io.javalin.websocket.WsContext
 import io.javalin.websocket.WsMessageContext
 import org.eclipse.jetty.websocket.api.Session
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicReference
 import javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST
 import javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR
@@ -30,16 +24,15 @@ object Retromat {
     private const val port = 8765
     private const val wsPingInterval = 15_000L
 
-    private val log = LoggerFactory.getLogger("RetromatLogger")
-    private val mapper = objectMapper()
-    private val retro = AtomicReference(newRetro())
+    val retromatLogger : Logger = LoggerFactory.getLogger("RetromatLogger")
+    private val retro = AtomicReference(loadMagicFileOrCreateEmptyRetro())
     private val sessions = mutableSetOf<Session>()
     private val safetyLevels = mutableMapOf<String, Int>()
     private val adminCode = random6digits()
 
     @JvmStatic
     fun main(args: Array<String>) {
-        JavalinJackson.configure(mapper)
+        JavalinJackson.configure(objectMapper)
         Javalin.create {
             it.addStaticFiles("/public")
         }
@@ -49,11 +42,11 @@ object Retromat {
                     code -> {
                         val newRetro = newRetro()
                         val oldRetro = retro.getAndSet(newRetro)
-                        log.info(
+                        retromatLogger.info(
                             "New retro created in place of the old one. Old retro data:\n{}",
                             JavalinJson.toJson(oldRetro)
                         )
-                        log.info("New retro id: {}", newRetro.id)
+                        retromatLogger.info("New retro id: {}", newRetro.id)
                         safetyLevels.clear()
                         sessions.forEach {
                             it.remote.sendString(
@@ -77,7 +70,7 @@ object Retromat {
                 when {
                     retroNotesPdf.isNotEmpty() -> {
                         ctx.header("Content-disposition", "attachment; filename=retro-${retro.get().id}.pdf")
-                        ctx.contentType("application/pdf");
+                        ctx.contentType("application/pdf")
                         ctx.result(retroNotesPdf)
                     }
                     else -> {
@@ -88,19 +81,18 @@ object Retromat {
             }
             .ws("/retro") {
                 it.onConnect { ctx ->
-                    log.info("Session connected {}", ctx.sessionId)
+                    retromatLogger.info("Session connected {}", ctx.sessionId)
                     ctx.send(Message(VERSION, mapOf("v" to version)))
                     sessions.add(ctx.session)
                     sendStats()
                     ctx.send(retro.get().toMessage())
                 }
                 it.onMessage { ctx ->
-                    val parsedMessage =
-                        parseMessageOrErrorMessage(ctx)
+                    val parsedMessage = parseMessageOrErrorMessage(ctx)
                     when (parsedMessage.type) {
                         ERROR -> {
                             ctx.send(JavalinJson.toJson(parsedMessage))
-                            log.error(
+                            retromatLogger.error(
                                 "Session sent {} the message which we could not understand. {}",
                                 ctx.sessionId,
                                 ctx.message()
@@ -116,44 +108,40 @@ object Retromat {
                             sendStats()
                         }
                         else -> {
-                            log.error("Unexpected message received on session {}: {}", ctx.sessionId, ctx.message())
+                            retromatLogger.error("Unexpected message received on session {}: {}", ctx.sessionId, ctx.message())
                         }
                     }
+                    saveCurrentRetro(retro.get())
                 }
                 it.onClose { ctx ->
                     clear(ctx)
                     sendStats()
-                    log.info("Session disconnected {}", ctx.sessionId)
+                    retromatLogger.info("Session disconnected {}", ctx.sessionId)
                 }
                 it.onError { ctx ->
                     clear(ctx)
                     sendStats()
-                    log.error("Error on session {}", ctx.sessionId)
+                    retromatLogger.error("Error on session {}", ctx.sessionId)
                 }
             }
             .start(port)
-        log.info(banner)
-        log.info(
-            "Retromat $version is listening on port: {}",
-            port
-        )
-        log.info(
-            "Admin code: {}",
-            adminCode
-        )
-        log.info("Created retro id: {}", retro.get().id)
+
+        retromatLogger.info(banner)
+        retromatLogger.info("Retromat v.$version is listening on port: {}", port)
+        retromatLogger.info("Admin code: {}", adminCode)
+        retromatLogger.info("Retro is saved in file: {}", currentRetroBackupFile(retro.get()))
 
         val wsPingTimer = fixedRateTimer("websocket-ping-timer", false, wsPingInterval, wsPingInterval) {
             sessions.forEach {
-                it.remote.sendString(
-                    pingMessageJson
-                )
+                it.remote.sendString(pingMessageJson)
             }
         }
 
         Runtime.getRuntime().addShutdownHook(Thread(Runnable {
             wsPingTimer.cancel()
-            log.info("Retromat is shutting down. Last known retro data: \n{}", JavalinJson.toJson(retro.get()))
+            saveCurrentRetro(retro.get())
+            retromatLogger.info("Retromat is shutting down. Last known retro data is saved in {}",
+                currentRetroBackupFile(retro.get()))
         }))
     }
 
@@ -219,30 +207,12 @@ object Retromat {
     }
 
     private fun sendUpdatedCard(card: RetroCard) {
-        log.debug("Sending updated card: {}", card)
+        retromatLogger.debug("Sending updated card: {}", card)
         val newCardMessage = JavalinJson.toJson(card.toMessage())
         sessions.forEach { it.remote.sendString(newCardMessage) }
     }
 
-    private fun objectMapper(): ObjectMapper {
-        return ObjectMapper()
-            .registerModule(KotlinModule())
-            .registerModule(
-                SimpleModule()
-                    .addSerializer(
-                        LocalDateTime::class.java,
-                        LocalDateTimeSerializer(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSSSSS"))
-                    )
-            )
-            .enable(SerializationFeature.INDENT_OUTPUT)
-    }
-
-    private val pingMessageJson = JavalinJson.toJson(
-        Message(
-            MessageType.PING,
-            mapOf()
-        )
-    )
+    private val pingMessageJson = JavalinJson.toJson(Message(MessageType.PING, mapOf()))
 
     private const val banner = """
              
